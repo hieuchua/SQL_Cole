@@ -1,0 +1,119 @@
+-- Project 1
+-- cau 1
+select * from customers
+where phone = "+49 69 66 90 2555";
+
+-- cau 2
+select * from orders
+where customerNumber = '128' and orderDate = '2003-01-09';
+
+-- cau 3
+select employeeNumber Ma_NV,concat_ws(" ",lastName,firstName) Ho_Ten,
+	email,officeCode Ma_VP, jobTitle Chuc_Vu
+from employees e
+	left join customers c on e.employeeNumber=c.salesRepEmployeeNumber
+    inner join orders using(customerNumber)
+where customerNumber = '128'
+	and orderDate = '2003-01-09';
+
+-- cau 4
+select * from products
+where productName like '%1928 Mercedes-Benz%';
+    
+-- cau 5
+select * from products
+where productName like '%1928 Mercedes-Benz%';
+
+-- cau 6
+select * from products
+where abs(MSRP - 168.75) <5;
+
+-- cau 7
+select * from products
+where productLine = 'Vintage Cars'
+and productScale = '1:18';
+
+-- cau 8
+select * from products
+where productDescription regexp 'white|black'
+and productDescription like '%opening hood%';
+
+-- cau 9
+select salesRepEmployeeNumber Ma_NV, count(customerNumber) SoLuong
+from customers
+where salesRepEmployeeNumber  is not null
+group by salesRepEmployeeNumber
+order by count(customerNumber) desc
+limit 1;
+
+-- cau 10
+select *
+from products p,orderdetails od,orders o,customers c
+where p.productCode=od.productCode
+	and od.orderNumber=o.orderNumber
+    and o.customerNumber = c.customerNumber
+    and p.productCode = "S18_2795";
+
+-- cau 11
+select c.customerName Ten_KH, round(c.creditLimit,0) HanMucTinDung,
+	sum(od.quantityOrdered*od.priceEach)"Total"
+from customers c, orders o,orderdetails od
+where c.customerNumber=o.customerNumber
+	and o.orderNumber= od.orderNumber
+group by c.customerNumber
+order by Total desc
+limit 5;
+
+-- cau 12
+select productCode Ma_SP,
+	(sum(quantityOrdered*priceEach)*100)/(select sum(quantityOrdered*priceEach) from orderdetails) Ty_le
+from orderdetails
+group by productCode
+order by Ty_le desc
+limit 5;
+
+-- CAU 13
+select orderNumber Ma_DH,orderDate NgayDatHang,requiredDate Ngay_YeuCau,shippedDate Ngay_Giao, datediff(shippedDate,requiredDate) NgayGiaoTre
+from orders
+where date(requiredDate)<date(shippedDate);
+
+-- cau 14
+select * from products
+where productCode not in ( 
+		select productCode 
+        from orderdetails);
+
+-- cau 15
+select *
+from products 
+group by productCode
+having quantityInStock > (
+	select avg(quantityInStock) from products
+	)
+order by quantityInStock desc;
+
+-- cau 16
+select productVendor,productLine,sum(quantityInStock)"Total" from products
+group by productVendor,productLine
+order by productVendor, productLine;
+
+-- cau 17
+WITH Last_Order AS
+(
+SELECT p.productCode, MAX(orderDate) orderDate
+FROM
+    products p,
+    orderdetails od,
+    orders o
+WHERE p.productCode = od.productCode
+	AND od.orderNumber = o.orderNumber
+GROUP BY p.productCode
+)
+SELECT p.productCode,productName,o.orderNumber,customerNumber,o.orderDate
+FROM products p,orderdetails od,orders o,Last_Order
+WHERE
+    p.productCode = od.productCode
+	AND od.orderNumber = o.orderNumber
+	AND p.productCode = Last_Order.productCode
+	AND o.orderDate = Last_Order.orderDate
+ORDER BY orderDate DESC;

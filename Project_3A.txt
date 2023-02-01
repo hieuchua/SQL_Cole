@@ -1,0 +1,138 @@
+-- Project 3A
+-- Truy van OLTP
+-- Cau 1
+select e.officeCode Ma_VP, e.employeeNumber Ma_NV,sum(od.quantityOrdered*od.priceEach) DoanhSo
+from  employees e, customers c, orders o, orderdetails od
+where e.employeeNumber = c.salesRepEmployeeNumber
+	and c.customerNumber = o.customerNumber
+    and o.orderNumber = od.orderNumber
+    and e.officeCode = '4'
+group by e.employeeNumber
+order by DoanhSo desc;
+
+-- Cau 2
+select e.officeCode Ma_VP, oi.city, sum(od.quantityOrdered*od.priceEach) DoanhSo
+from offices oi,employees e, customers c, orders o, orderdetails od
+where oi.officeCode = e.officeCode
+	and e.employeeNumber = c.salesRepEmployeeNumber
+	and c.customerNumber = o.customerNumber
+	and o.orderNumber = od.orderNumber
+group by e.officeCode
+order by DoanhSo desc;
+
+-- Cau 3
+select oi.officeCode Ma_VP, oi.country QuocGia, sum(od.quantityOrdered*od.priceEach) DoanhSo
+from offices oi, employees e, customers c, orders o, orderdetails od
+where oi.officeCode = e.officeCode
+	and e.employeeNumber = c.salesRepEmployeeNumber
+	and c.customerNumber = o.customerNumber
+	and o.orderNumber = od.orderNumber
+    and oi.country = c.country
+group by oi.officeCode
+order by DoanhSo desc;
+
+-- Cau 4
+select p.productCode Ma_SP, p.productName Ten_SP,avg(p.MSRP - od.priceEach) Gia_ChenhLech
+from products p left join orderdetails od using(productCode)
+group by p.productCode
+order by Gia_ChenhLech desc;
+
+-- Cau 5
+select c.country, sum(p.MSRP - od.priceEach)Total
+from customers c, orders o, orderdetails od, products p
+where c.customerNumber = o.customerNumber
+	and o.orderNumber = od.orderNumber
+	and od.productCode = p.productCode
+group by c.country
+order by Total desc;
+
+-- Cau 6
+select p.productCode Ma_SP,p.productName Ten_SP, p.quantityInStock Ton_Kho, avg(p.MSRP-od.priceEach) Avg_Deviation
+from products p, orderdetails od
+where p.productCode = od.productCode
+group by p.productCode;
+
+-- Cau 7
+select c.country QuocGia, p.productCode Ma_SP,P.productName Ten_SP, sum(od.quantityOrdered) Tong_SP
+from customers c, orders o, orderdetails od, products p
+where c.customerNumber = o.customerNumber
+	and o.orderNumber = od.orderNumber
+	and od.productCode = p.productCode
+	and c.country = 'USA'
+group by p.productCode
+order by Tong_SP DESC
+limit 5;
+
+-- OLAP
+-- CAU 1
+select productCode Ma_SP, sum(quantityOrder*proceEach) DoanhSo
+from fact_orderdetails
+group by Ma_SP
+order by DoanhSo desc
+limit 5;
+
+-- cau 2
+select e.officeCode Ma_VP, e.employeeNumber Ma_NV, e.emloyeeeName Ten_NV, 
+	sum(od.quantityOrder*od.proceEach) DoanhSo
+from dim_employee e, fact_orderdetails od
+where e.employeeNumber = od.employeeNumber
+group by Ma_NV
+order by e.officeCode;
+
+-- cau 3
+select e.officeCode Ma_VP,
+	sum(od.quantityOrder*od.proceEach) DoanhSo
+from dim_employee e, fact_orderdetails od
+where e.employeeNumber = od.employeeNumber
+group by e.officeCode
+order by e.officeCode;
+
+-- cau 4
+select p.productLine DongSP, sum(od.quantityOrder*od.proceEach) Sales
+from dim_product p, fact_orderdetails od
+where p.productCode = od.productCode
+group by DongSP;
+
+-- CAU 5
+select d.year Nam, d.quarter Quy, sum(od.quantityOrder*od.proceEach) Sales
+from dim_date d, fact_orderdetails od
+where d.dateID = od.dateID
+group by d.year, d.quarter;
+
+-- cau 6
+select p.productCode Ma_SP, p.productName Ten_SP, s.quantityStock TonKho
+from dim_product p, fact_stock s
+where p.productCode = s.productCode
+order by TonKho desc;
+
+-- cau 7
+select c.customerNumber Ma_KH, c.customerName Ten_KH, sum(p.amount) Tong
+from dim_customer c, fact_payment p
+where c.customerNumber = p.customerNumber
+group by Ma_KH
+ORDER BY Tong desc;
+
+-- cau 8
+select c.country, p.productCode Ma_SP, P.productName Ten_SP,sum(od.quantityOrder) TongSP
+from dim_customer c, fact_orderdetails od, dim_product p
+where c.customerNumber = od.customerNumber
+	and od.productCode = p.productCode
+	and c.country ='USA'
+group by Ma_SP
+ORDER BY TongSP DESC
+LIMIT 5;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

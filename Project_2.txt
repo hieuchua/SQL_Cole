@@ -1,0 +1,270 @@
+-- Project 2 (datebase: classic_models_olap)
+
+-- customer
+create database classic_models_olap;
+create table classic_models_olap.dim_customer (
+	customerNumber int not null,
+    customerName varchar(50),
+    city varchar(50),
+    state varchar(50),
+    country varchar(50),
+    
+    primary key(customerNumber)
+);
+	
+-- employees
+create table classic_models_olap.dim_employee (
+	employeeNumber int,
+    emloyeeeName varchar(50),
+    jobTile varchar(50),
+    officeCode varchar(50),
+    city varchar(50),
+    state varchar(50),
+    country varchar(50),
+    primary key(employeeNumber)
+);
+
+-- order
+create table classic_models_olap.dim_order(
+	orderNumber int,
+    status varchar(50),
+    primary key (orderNumber)
+);
+
+-- products
+create table classic_models_olap.dim_product(
+	productCode varchar(15),
+    productName varchar(70),
+    productLine varchar(50),
+    productVendor varchar(50),
+    primary key(productCode)
+);
+
+-- date
+create table classic_models_olap.dim_date(
+	dateID date,
+    day int,
+    quarter int,
+    year int,
+    primary key(dateId)
+);
+
+-- fact customer
+ create table classic_models_olap.fact_customer (
+	customerNumber int,
+	employeeNumber int,
+    creditLimit DECIMAL(10,2),
+    foreign key(customerNumber) references dim_customer(customerNumber),
+    foreign key(employeeNumber) references dim_employee(employeeNumber)
+ );
+
+-- face OrderDetails
+create table classic_models_olap.fact_orderdetails(
+	dateID DATE,
+    customerNumber int,
+    employeeNumber int,
+    productCode varchar(15),
+    orderNumber int,
+    quantityOrder  int,
+    proceEach decimal(10,2),
+    status varchar(50),
+    foreign key(dateID) references dim_date(dateID),
+	foreign key(customerNumber) references dim_customer(customerNumber),
+    foreign key(employeeNumber) references dim_employee(employeeNumber),
+    foreign key(productCode) references dim_product(productCode),
+    foreign key(orderNumber) references dim_order(orderNumber)
+);
+
+-- fact payment
+create table classic_models_olap.fact_payment(
+	customerNumber int,
+    dateID DATE,
+    amount decimal(10,2),
+    foreign key(customerNumber) references dim_customer(customerNumber),
+    foreign key(dateID) references dim_date(dateID)
+);
+
+-- fact stock
+create table classic_models_olap.fact_stock(
+	productCode varchar(15),
+    buyPrice decimal(10,2),
+    quantityStock int,
+    MSRP decimal(10,2),
+    foreign key(productCode) references dim_product(productCode)
+);
+
+-- face historylevel
+create table classic_models_olap.fact_historylevel(
+	orderNumber int,
+    dateID DATE,
+    levelStatus varchar(50),
+	foreign key(orderNumber) references dim_order(orderNumber),
+	foreign key(dateID) references dim_date(dateID)
+);
+
+-- insert dim_customer
+insert into classic_models_olap.dim_customer(
+	customerNumber,customerName,city,state,country)
+select customerNumber,customerName,city,state,country
+from lesson_1.customers;
+
+-- insert dim_employee
+insert into classic_models_olap.dim_employee(
+employeeNumber,
+emloyeeeName,
+jobTile ,
+officeCode ,
+city ,
+state,
+country)
+select employeeNumber,concat_ws(" ",firstName,lastName),
+jobTitle,
+officeCode,
+city,
+state,
+country
+from lesson_1.employees inner join lesson_1.offices using(officeCode);
+
+-- insert dim order
+insert into classic_models_olap.dim_order(
+	orderNumber,status)
+select orderNumber,status 
+from lesson_1.orders;
+
+-- insert dim product
+insert into classic_models_olap.dim_product(
+	productCode,
+productName ,
+productLine , 
+productVendor
+)
+select  	productCode,
+productName ,
+productLine , 
+productVendor
+from lesson_1.products;
+
+-- insert dim date () (date Power BI or Excel)
+DROP PROCEDURE IF EXISTS fillDates;
+DELIMITER |
+CREATE PROCEDURE `fillDates`(dateStart DATE, dateEnd DATE)
+BEGIN
+       	WHILE dateStart <= dateEnd DO
+            	INSERT INTO dim_date 
+		VALUES (	dateStart,
+			DAY(dateStart),
+			QUARTER(dateStart),
+			YEAR(dateStart) );
+           	SET dateStart = date_add(dateStart, INTERVAL 1 DAY);
+          	END WHILE;
+        END;
+|
+DELIMITER ;
+CALL fillDates("2003-01-01", "2005-12-31");
+/*insert into classic_models_olap.dim_date(
+	dateID,day,quarter,year) ;
+
+ CREATE VIEW v_dim_date AS
+	WITH all_dates(dateID) AS (			
+		SELECT '2003-01-01' dateID			
+		UNION ALL 				
+		SELECT dateID + INTERVAL 1 DAY FROM all_date 
+		WHERE dateID < '2005-12-30'
+		)		
+	SELECT			
+		dateID,			
+		DAY(dateID) AS day,							
+		QUARTER(dateID) AS quarter,						
+		YEAR(dateID) AS year		
+	FROM all_dates(dateID)
+*/
+
+-- insert fact customer
+insert into classic_models_olap.fact_customer(
+	customerNumber ,
+employeeNumber,
+creditLimit)
+select classic_models_olap.dim_customer.customerNumber,
+	classic_models_olap.dim_employee.employeeNumber,
+    lesson_1.customers.creditLimit
+from classic_models_olap.dim_customer left join lesson_1.customers using(customerNumber)
+	inner join classic_models_olap.dim_employee on 
+classic_models_olap.dim_employee.employeeNumber = lesson_1.customers.salesRepEmployeeNumber;
+
+-- insert fact payment 
+insert into classic_models_olap.fact_payment(
+	customerNumber,dateID,amount)
+select customerNumber,dateID,amount
+from dim_customer inner join lesson_1.payments using(customerNumber)
+	inner join dim_date on lesson_1.payments.paymentDate = dim_date.dateID;
+
+-- INSERT FACT stock
+insert into classic_models_olap.fact_stock(
+	productCode,buyPrice,quantityStock,MSRP)
+select productCode,buyPrice,quantityInStock,MSRP
+FROM dim_product left join lesson_1.products using(productCode);
+
+-- insert fact orderDetails
+INSERT INTO fact_orderdetails
+SELECT	dim_date.dateID, dim_customer.customerNumber,
+	dim_employee.employeeNumber,	dim_product.productCode,
+	dim_order.orderNumber, quantityOrdered,
+	priceEach,	dim_order.`status`
+FROM dim_customer INNER JOIN lesson_1.customers USING (customerNumber)
+	INNER JOIN dim_employee ON dim_employee.employeeNumber = lesson_1.customers.salesRepEmployeeNumber
+	INNER JOIN lesson_1.orders USING (customerNumber)
+	INNER JOIN dim_order USING (orderNumber)
+	INNER JOIN lesson_1.orderdetails USING (orderNumber)
+	INNER JOIN dim_product USING (productCode)
+	INNER JOIN dim_date ON lesson_1.orders.orderDate = dim_date.dateID;
+
+-- historyleved
+DELIMITER |
+DROP PROCEDURE IF EXISTS insert_fact_his;
+CREATE PROCEDURE insert_fact_his()
+BEGIN
+DECLARE ordNum INT; DECLARE orddate date;
+DECLARE shipdate date; DECLARE ostatus text;
+DECLARE reqdate date; DECLARE x date;
+SET ordNum = (SELECT MIN(orderNumber) as max FROM lesson_1.orders);
+simple_loop: Loop
+SET orddate = (SELECT orderDate FROM lesson_1.orders WHERE orderNumber = ordNum );
+SET shipdate = (SELECT shippedDate FROM lesson_1.orders WHERE orderNumber = ordNum );
+SET reqdate = (SELECT requiredDate FROM lesson_1.orders WHERE orderNumber = ordNum );
+SET ostatus = (SELECT status FROM lesson_1.orders WHERE orderNumber = ordNum );
+SET x = orddate;
+insert_loop: LOOP
+    IF x = shipdate THEN
+	INSERT INTO classic_models_olap.fact_historylevel (orderNumber, dateID, levelStatus)
+		VALUE (ordNum,x,"Shipped");
+    	LEAVE insert_loop;
+ELSE 
+	INSERT INTO classic_models_olap.fact_historylevel (orderNumber, dateID, levelStatus)
+		VALUE (ordNum,x,"Ordered");
+	END IF;
+IF x > (SELECT max(dateID) as max FROM classic_models_olap.dim_date) THEN
+    LEAVE insert_loop;
+    END IF;
+    END LOOP insert_loop;
+-- plus X --
+    IF DATE(x+1) IS NOT NULL THEN
+		SET x = x+1;
+	ELSE IF DATE(CONCAT(YEAR(x),"-",MONTH(x)+1,"-",1)) IS NOT NULL THEN
+		SET x = DATE(CONCAT(YEAR(x),"-",MONTH(x)+1,"-",1));
+		ELSE SET x = DATE(CONCAT(YEAR(x)+1,"-", 1 ,"-",1));
+		END IF;
+	END IF;
+    -- --
+SET ordNum = ordNum +1;
+IF ordNum > (SELECT MAX(orderNumber) as max FROM lesson_1.orders) THEN
+	LEAVE simple_loop;
+END IF;
+END LOOP simple_loop;
+END; |
+DELIMITER ;
+/*
+-- chinh time query mysql worbench
+--  Edit → Preferences → SQL Editor -> DBMS connection read time out (in seconds): 600 
+-- 
+*/
+call insert_fact_his();
